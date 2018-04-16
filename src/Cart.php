@@ -171,7 +171,6 @@ class Cart
         }
         $content->put($cartItem->rowId, $cartItem);
 
-
         $this->events->fire('cart.updated', $cartItem);
 
         $this->session->put($this->instance, $content);
@@ -211,6 +210,7 @@ class Cart
         if (! $content->has($rowId)) {
             throw new InvalidRowIDException("The cart does not contain rowId {$rowId}.");
         }
+
         return $content->get($rowId);
     }
 
@@ -375,16 +375,23 @@ class Cart
         $content = $this->getContent();
 
         if ($this->storedCartWithIdentifierExists($identifier)) {
-            throw new CartAlreadyStoredException("A cart with identifier {$identifier} was already stored.");
+            //throw new CartAlreadyStoredException("A cart with identifier {$identifier} was already stored.");
+            $this->getConnection()->table($this->getTableName())
+                ->where('identifier', $identifier)
+            ->update([
+                'instance' => $this->currentInstance(),
+                'content' => serialize($content)
+            ]);
+            $this->events->fire('cart.updated');
+        } else {
+            $this->getConnection()->table($this->getTableName())->insert([
+                'identifier' => $identifier,
+                'instance' => $this->currentInstance(),
+                'content' => serialize($content)
+            ]);
+
+            $this->events->fire('cart.stored');
         }
-
-        $this->getConnection()->table($this->getTableName())->insert([
-            'identifier' => $identifier,
-            'instance' => $this->currentInstance(),
-            'content' => serialize($content)
-        ]);
-
-        $this->events->fire('cart.stored');
     }
 
     /**
@@ -481,6 +488,7 @@ class Cart
         if (! is_array($item)) {
             return false;
         }
+
         return is_array(head($item)) || head($item) instanceof Buyable;
     }
 
