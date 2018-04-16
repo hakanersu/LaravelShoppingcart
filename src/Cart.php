@@ -8,8 +8,8 @@ use Illuminate\Session\SessionManager;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Contracts\Events\Dispatcher;
 use Gloudemans\Shoppingcart\Contracts\Buyable;
-use Gloudemans\Shoppingcart\Exceptions\UnknownModelException;
 use Gloudemans\Shoppingcart\Exceptions\InvalidRowIDException;
+use Gloudemans\Shoppingcart\Exceptions\UnknownModelException;
 use Gloudemans\Shoppingcart\Exceptions\CartAlreadyStoredException;
 
 class Cart
@@ -25,7 +25,7 @@ class Cart
 
     /**
      * Instance of the event dispatcher.
-     * 
+     *
      * @var \Illuminate\Contracts\Events\Dispatcher
      */
     private $events;
@@ -52,9 +52,32 @@ class Cart
     }
 
     /**
+     * Magic method to make accessing the total, tax and subtotal properties possible.
+     *
+     * @param string $attribute
+     * @return null|float
+     */
+    public function __get($attribute)
+    {
+        if ($attribute === 'total') {
+            return $this->total();
+        }
+
+        if ($attribute === 'tax') {
+            return $this->tax();
+        }
+
+        if ($attribute === 'subtotal') {
+            return $this->subtotal();
+        }
+
+        return null;
+    }
+
+    /**
      * Set the current cart instance.
      *
-     * @param string|null $instance
+     * @param null|string $instance
      * @return \Gloudemans\Shoppingcart\Cart
      */
     public function instance($instance = null)
@@ -81,7 +104,7 @@ class Cart
      *
      * @param mixed     $id
      * @param mixed     $name
-     * @param int|float $qty
+     * @param float|int $qty
      * @param float     $price
      * @param array     $options
      * @return \Gloudemans\Shoppingcart\CartItem
@@ -103,7 +126,7 @@ class Cart
         }
 
         $content->put($cartItem->rowId, $cartItem);
-        
+
         $this->events->fire('cart.added', $cartItem);
 
         $this->session->put($this->instance, $content);
@@ -143,10 +166,11 @@ class Cart
 
         if ($cartItem->qty <= 0) {
             $this->remove($cartItem->rowId);
+
             return;
-        } else {
-            $content->put($cartItem->rowId, $cartItem);
         }
+        $content->put($cartItem->rowId, $cartItem);
+
 
         $this->events->fire('cart.updated', $cartItem);
 
@@ -184,9 +208,9 @@ class Cart
     {
         $content = $this->getContent();
 
-        if ( ! $content->has($rowId))
+        if (! $content->has($rowId)) {
             throw new InvalidRowIDException("The cart does not contain rowId {$rowId}.");
-
+        }
         return $content->get($rowId);
     }
 
@@ -217,7 +241,7 @@ class Cart
     /**
      * Get the number of items in the cart.
      *
-     * @return int|float
+     * @return float|int
      */
     public function count()
     {
@@ -305,7 +329,7 @@ class Cart
      */
     public function associate($rowId, $model)
     {
-        if(is_string($model) && ! class_exists($model)) {
+        if (is_string($model) && ! class_exists($model)) {
             throw new UnknownModelException("The supplied model {$model} does not exist.");
         }
 
@@ -324,7 +348,7 @@ class Cart
      * Set the tax rate for the cart item with the given rowId.
      *
      * @param string    $rowId
-     * @param int|float $taxRate
+     * @param float|int $taxRate
      * @return void
      */
     public function setTax($rowId, $taxRate)
@@ -367,11 +391,12 @@ class Cart
      * Restore the cart with the given identifier.
      *
      * @param mixed $identifier
+     * @param mixed $delete
      * @return void
      */
-    public function restore($identifier)
+    public function restore($identifier, $delete = false)
     {
-        if( ! $this->storedCartWithIdentifierExists($identifier)) {
+        if (! $this->storedCartWithIdentifierExists($identifier)) {
             return;
         }
 
@@ -396,31 +421,10 @@ class Cart
 
         $this->instance($currentInstance);
 
-        $this->getConnection()->table($this->getTableName())
+        if ($delete) {
+            $this->getConnection()->table($this->getTableName())
             ->where('identifier', $identifier)->delete();
-    }
-
-    /**
-     * Magic method to make accessing the total, tax and subtotal properties possible.
-     *
-     * @param string $attribute
-     * @return float|null
-     */
-    public function __get($attribute)
-    {
-        if($attribute === 'total') {
-            return $this->total();
         }
-
-        if($attribute === 'tax') {
-            return $this->tax();
-        }
-
-        if($attribute === 'subtotal') {
-            return $this->subtotal();
-        }
-
-        return null;
     }
 
     /**
@@ -442,7 +446,7 @@ class Cart
      *
      * @param mixed     $id
      * @param mixed     $name
-     * @param int|float $qty
+     * @param float|int $qty
      * @param float     $price
      * @param array     $options
      * @return \Gloudemans\Shoppingcart\CartItem
@@ -474,8 +478,9 @@ class Cart
      */
     private function isMulti($item)
     {
-        if ( ! is_array($item)) return false;
-
+        if (! is_array($item)) {
+            return false;
+        }
         return is_array(head($item)) || head($item) instanceof Buyable;
     }
 
@@ -533,13 +538,13 @@ class Cart
      */
     private function numberFormat($value, $decimals, $decimalPoint, $thousandSeperator)
     {
-        if(is_null($decimals)){
+        if (is_null($decimals)) {
             $decimals = is_null(config('cart.format.decimals')) ? 2 : config('cart.format.decimals');
         }
-        if(is_null($decimalPoint)){
+        if (is_null($decimalPoint)) {
             $decimalPoint = is_null(config('cart.format.decimal_point')) ? '.' : config('cart.format.decimal_point');
         }
-        if(is_null($thousandSeperator)){
+        if (is_null($thousandSeperator)) {
             $thousandSeperator = is_null(config('cart.format.thousand_seperator')) ? ',' : config('cart.format.thousand_seperator');
         }
 
