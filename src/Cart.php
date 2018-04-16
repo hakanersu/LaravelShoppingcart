@@ -380,14 +380,17 @@ class Cart
                 ->where('identifier', $identifier)
             ->update([
                 'instance' => $this->currentInstance(),
-                'content' => serialize($content)
+                'content' => serialize($content),
+                'updated_at' => \Carbon\Carbon::now()
             ]);
             $this->events->fire('cart.updated');
         } else {
             $this->getConnection()->table($this->getTableName())->insert([
                 'identifier' => $identifier,
                 'instance' => $this->currentInstance(),
-                'content' => serialize($content)
+                'content' => serialize($content),
+                'created_at' => \Carbon\Carbon::now(),
+                'updated_at' => \Carbon\Carbon::now()
             ]);
 
             $this->events->fire('cart.stored');
