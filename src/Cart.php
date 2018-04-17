@@ -235,7 +235,7 @@ class Cart
             return new Collection([]);
         }
 
-        return $this->session->get($this->instance);
+        return $this->session->get($this->instance)->sortBy('rowId');
     }
 
     /**
